@@ -1,39 +1,88 @@
-import { Controller, Post, Body, Res, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Res, Req, Get } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
-import { UnauthorizedException } from '@nestjs/common';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private authService: AuthService,
-    private usersService: UsersService,
-  ) {}
+  constructor(private authService: AuthService) {}
+
+  @Get('validate-token')
+  async validateToken(@Req() req: Request) {
+    console.log(1)
+    // Токен уже проверен middleware, просто подтверждаем валидность
+    return { status: 200, message:'Пользователь успешно авторизован!' };
+  }
 
   @Post('login')
   async login(
-    @Body('email') email: string,
+    @Body() body: any,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { accessToken, refreshToken } = await this.authService.login(body);
+    console.log('TOKENS: ', accessToken, refreshToken)
+    response.cookie('Authentication', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 15 * 60 * 1000,
+      sameSite: 'none',
+      path: '/',
+    });
+
+    response.cookie('Refresh', refreshToken, {
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/',
+    });
+    
+    return {status:200, message: 'Login successful' };
+  }
+
+  @Post('register')
+  async register(
+    @Body() body: any,
     @Body('password') password: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const user = await this.usersService.validateUser(email, password);
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    const token = await this.authService.login(user);
-    response.cookie('Authentication', token.accessToken, {
+    const { accessToken, refreshToken } = await this.authService.register(body);
+
+    response.cookie('Authentication', accessToken, {
       httpOnly: true,
-      secure: false, // Set to true in production
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
       path: '/',
+      maxAge: 15 * 60 * 1000,
     });
-    return { message: 'Login successful' };
+
+    response.cookie('Refresh', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/auth/refresh-token',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return {status:200, message: 'Registration successful' };
   }
 
-  @Post('logout')
-  logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie('Authentication');
-    return { message: 'Logout successful' };
+  @Post('refresh-token')
+  async refreshToken(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const refreshToken = request.cookies['Refresh'];
+    if(!refreshToken)return {status:401, message: 'Refresh token is missing!' };
+    const { accessToken } = await this.authService.refreshToken(refreshToken);
+    
+    response.cookie('Authentication', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return {status:200, message: 'Token refreshed' };
   }
 }
