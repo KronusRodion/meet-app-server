@@ -7,7 +7,7 @@ async function bootstrap() {
   
   // Включаем CORS
   app.enableCors({
-    origin: 'https://decisively-cogent-centipede.cloudpub.ru', // Разрешаем фронтенд
+    origin: 'http://localhost:3000',
     credentials: true, // Для cookies
   });
   

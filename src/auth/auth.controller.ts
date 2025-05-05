@@ -8,7 +8,6 @@ export class AuthController {
 
   @Get('validate-token')
   async validateToken(@Req() req: Request) {
-    console.log(1)
     // Токен уже проверен middleware, просто подтверждаем валидность
     return { status: 200, message:'Пользователь успешно авторизован!' };
   }
@@ -24,16 +23,18 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 15 * 60 * 1000,
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/',
+      // domain: 'localhost',
     });
 
     response.cookie('Refresh', refreshToken, {
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/',
+      // domain: 'localhost',
     });
     
     return {status:200, message: 'Login successful' };
@@ -50,17 +51,19 @@ export class AuthController {
     response.cookie('Authentication', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/',
       maxAge: 15 * 60 * 1000,
+          // domain: 'localhost',
     });
 
     response.cookie('Refresh', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/auth/refresh-token',
       maxAge: 7 * 24 * 60 * 60 * 1000,
+          // domain: 'localhost',
     });
 
     return {status:200, message: 'Registration successful' };
@@ -78,11 +81,33 @@ export class AuthController {
     response.cookie('Authentication', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
+          // domain: 'localhost',
     });
 
     return {status:200, message: 'Token refreshed' };
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie('Authentication', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+          // domain: 'localhost',
+    });
+    
+    response.clearCookie('Refresh', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+          // domain: 'localhost',
+    });
+
+    return { status: 200, message: 'Logout successful' };
   }
 }
